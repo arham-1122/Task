@@ -1,47 +1,37 @@
 # Freight Document Extraction & Validation System
 
-A lightweight Python application that extracts structured data from unstructured freight documents using Google Gemini, enforces a strict Pydantic v2 schema, validates the extracted data against deterministic business rules, and produces an automated processing decision.
+A small Python application that reads freight document text, extracts the required information using Google Gemini, checks the extracted data against business rules, and returns a final decision.
 
-The system is designed around a simple principle: **use the LLM for semantic extraction and deterministic Python code for business decisions**. This prevents the language model from silently correcting financial values or making business-rule decisions.
+The main goal is to keep the LLM responsible for **extracting information**, while Python handles the **actual validation and decision-making**.
 
----
-
-## Overview
-
-The application processes freight documents through the following pipeline:
+## How It Works
 
 ```text
-Raw Freight Document
-        │
-        ▼
-LLM Extraction — Google Gemini
-        │
-        ▼
-Structured Pydantic Model
-        │
-        ▼
-Deterministic Validation
-        │
-        ▼
-Decision Engine
-        │
-        ▼
-APPROVED / FLAGGED_FOR_HUMAN_REVIEW
-        │
-        ▼
-CLI / JSON Output
+Freight Document
+       ↓
+   Read Text
+       ↓
+ Gemini Extraction
+       ↓
+ Pydantic Validation
+       ↓
+ Business Rule Checks
+       ↓
+ Approved / Flagged for Human Review
 ```
 
 The system extracts:
 
-* `carrier_name`
-* `load_number`
-* `pickup_location`
-* `delivery_location`
-* `total_linehaul_rate`
-* `fuel_surcharge`
-* `total_pay`
-* `weight_lbs`
+* Carrier name
+* Load number
+* Pickup location
+* Delivery location
+* Linehaul rate
+* Fuel surcharge
+* Total pay
+* Weight
+
+It then checks the extracted data for missing information, incorrect rate calculations, and overweight loads.
 
 ---
 
@@ -76,96 +66,73 @@ Task/
 └── README.md
 ```
 
-### Component Responsibilities
+### Main files
 
-* **`models.py`** — Defines strict Pydantic models and application result types.
-* **`extractor.py`** — Handles Google Gemini structured extraction and converts model output into the Pydantic schema.
-* **`validator.py`** — Contains deterministic freight business rules.
-* **`engine.py`** — Orchestrates extraction, validation, and final decision-making.
-* **`cli.py`** — Provides the command-line interface.
-* **`tests/`** — Contains unit, integration, and deterministic end-to-end tests.
-
----
-
-## Technology Stack
-
-* **Python 3.10+**
-* **Google Gemini**
-* **`google-genai`**
-* **Pydantic v2**
-* **python-dotenv**
-* **pytest**
-* **argparse**
-* **JSON**
+* `models.py` — Pydantic models used for the extracted data and processing results.
+* `extractor.py` — Sends the document text to Gemini and converts the response into the required schema.
+* `validator.py` — Contains the freight business rules.
+* `engine.py` — Connects extraction, validation, and the final decision.
+* `cli.py` — Command-line interface for running the processor.
+* `tests/` — Unit and end-to-end tests.
 
 ---
 
-## Environment Setup
+## Requirements
 
-### 1. Clone the repository
+* Python 3.10+
+* Google Gemini API key
+
+The project was developed and tested with Python 3.12.
+
+---
+
+## Setup
+
+Clone the repository and move into the project directory:
 
 ```bash
-git clone <YOUR_REPOSITORY_URL>
+git clone <repository-url>
 cd Task
 ```
 
-### 2. Create a virtual environment
+Create a virtual environment:
 
 ```bash
-python -m venv venv
+python -m venv .venv
 ```
 
-### Windows PowerShell
-
-```powershell
-.\venv\Scripts\Activate.ps1
-```
-
-### macOS/Linux
+Activate it on Windows:
 
 ```bash
-source venv/bin/activate
+.venv\Scripts\activate
 ```
 
-### 3. Install dependencies
+Install the dependencies:
 
 ```bash
-pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 4. Configure Gemini
-
-Create a `.env` file from the provided example:
-
-```bash
-cp .env.example .env
-```
-
-On Windows, you can also create `.env` manually from `.env.example`.
-
-Set:
+Create a `.env` file:
 
 ```env
-GEMINI_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL=your_supported_gemini_model
+GEMINI_API_KEY=your_api_key_here
+GEMINI_MODEL=gemini-3.8-flash
 ```
 
-Do **not** commit `.env` or expose your API key.
+Do not commit the `.env` file or your API key.
 
 ---
 
 ## Running the Application
 
-The CLI accepts a raw freight document as a text file.
-
-### Human-readable output
+Run the sample document:
 
 ```bash
 python -m freight_processor.cli data/sample_freight_doc.txt
 ```
 
-### JSON output
+To get the result as JSON:
 
 ```bash
 python -m freight_processor.cli data/sample_freight_doc.txt --json
@@ -175,98 +142,78 @@ python -m freight_processor.cli data/sample_freight_doc.txt --json
 
 ## Validation Rules
 
-The validation layer is deterministic and does not rely on the LLM for business decisions.
+The application currently checks three main cases.
 
-### 1. Rate mismatch
+### Rate mismatch
 
-The application checks:
+The linehaul rate and fuel surcharge must equal the total pay.
 
 ```text
-total_linehaul_rate + fuel_surcharge == total_pay
+linehaul + fuel surcharge = total pay
 ```
 
-If the values do not match:
+If they do not match:
 
 ```text
 RATE_MISMATCH
 ```
 
-is generated as an error.
+### Overweight load
 
-### 2. Overweight load
-
-If:
-
-```text
-weight_lbs > 45,000
-```
-
-the system generates:
+Loads above 45,000 lbs are flagged:
 
 ```text
 OVERWEIGHT_LOAD
 ```
 
-as a warning.
+### Incomplete data
 
-### 3. Incomplete data
-
-Missing or blank required information, including load numbers or locations, produces:
+If required information such as the load number, carrier, or location is missing or incomplete:
 
 ```text
 INCOMPLETE_DATA
 ```
 
-as an error.
-
-### 4. Final decision
-
-If no errors or warnings exist:
+If there are no issues, the result is:
 
 ```text
 APPROVED
 ```
 
-If any validation issue exists:
+If there is at least one error or warning:
 
 ```text
 FLAGGED_FOR_HUMAN_REVIEW
 ```
 
-The resulting issues include a code, severity, and explanatory message.
-
 ---
 
-## Sample Document
+## Sample Result
 
-The included sample document intentionally contains validation problems.
-
-Relevant values:
+The included sample document contains:
 
 ```text
 Linehaul Rate:       $2,200.00
-Fuel Surcharge:        $350.00
+Fuel Surcharge:      $350.00
 Total Agreed Amount: $2,800.00
-Total Weight:         46,800 lbs
+Weight:              46,800 lbs
 ```
 
-The arithmetic is:
+The system keeps these values exactly as they appear in the document.
+
+It does **not** change the total pay to `$2,550`. Instead, Python detects that:
 
 ```text
-$2,200 + $350 = $2,550
+2200 + 350 = 2550
 ```
 
-but the document states:
+while the document states:
 
 ```text
-Total Pay = $2,800
+2800
 ```
 
-Therefore, the system must preserve the document's stated `$2,800` value and allow the deterministic validator to identify the discrepancy.
-
-The weight also exceeds the 45,000 lb threshold.
-
-### Expected decision
+The result is therefore:
 
 ```text
 FLAGGED_FOR_HUMAN_REVIEW
@@ -281,104 +228,50 @@ OVERWEIGHT_LOAD
 
 ---
 
-## Example Output
-
-A successful run against the provided sample produces a result equivalent to:
-
-```json
-{
-  "status": "FLAGGED_FOR_HUMAN_REVIEW",
-  "extracted_data": {
-    "carrier_name": "Apex Logistics Solutions LLC",
-    "load_number": "LD-994821",
-    "pickup_location": {
-      "city": "Dallas",
-      "state": "TX",
-      "zip": "75201"
-    },
-    "delivery_location": {
-      "city": "Atlanta",
-      "state": "GA",
-      "zip": "30303"
-    },
-    "total_linehaul_rate": 2200.0,
-    "fuel_surcharge": 350.0,
-    "total_pay": 2800.0,
-    "weight_lbs": 46800
-  },
-  "issues": [
-    {
-      "code": "RATE_MISMATCH",
-      "severity": "ERROR"
-    },
-    {
-      "code": "OVERWEIGHT_LOAD",
-      "severity": "WARNING"
-    }
-  ]
-}
-```
-
-The important behavior is that `total_pay` remains `2800.0`; the application does not allow the LLM to silently recalculate or correct the value.
-
----
-
 ## Testing
 
-Run the complete automated test suite with:
+Run the full test suite with:
 
 ```bash
 pytest -q
 ```
 
-The current test suite contains **22 tests**, covering the data models, validation rules, extraction layer, processing engine, CLI-related behavior, and deterministic end-to-end processing.
+The current test suite covers the Pydantic models, validation rules, Gemini extraction handling, processing engine, and an end-to-end sample document test.
 
-The latest verification completed with:
-
-```text
-22 passed
-```
-
-The end-to-end test uses a mocked extraction layer, so it does not require a live Gemini API call.
+The tests mock the Gemini response where appropriate, so most tests do not require an API call.
 
 ---
 
 ## Architecture & LLM Reliability
 
-The application separates probabilistic LLM behavior from deterministic application logic. Google Gemini is responsible for interpreting unstructured freight text and extracting the required fields. The extraction request uses a structured JSON response configuration based on the Pydantic model, while the resulting data is validated again before it enters the business-rule layer. The extraction prompt explicitly instructs the model to preserve values exactly as stated in the source document and not recalculate or reconcile financial values.
+The system uses Gemini to extract information from freight documents and Python to handle the actual business rules. Gemini returns the required fields in a fixed Pydantic schema, and the extracted data is validated before being processed. The prompt also tells the model to keep values exactly as they appear in the document instead of changing or recalculating them.
 
-Business rules are intentionally implemented outside the LLM in deterministic Python code. This makes financial calculations, weight thresholds, completeness checks, and final approval decisions predictable and testable. The orchestration layer also converts extraction failures into a reviewable processing result instead of allowing an external LLM failure to silently produce an incorrect approval.
+The business rules are handled separately in Python. This keeps checks like rate calculations, weight limits, missing data, and approval decisions consistent and easy to test. If the LLM fails, the system flags the document for human review instead of making an automatic decision.
 
 ---
 
 ## Scaling to 100,000 Documents per Day
 
-For a production workload of approximately 100,000 messy PDF documents per day, the synchronous CLI architecture could be evolved into an asynchronous, horizontally scalable pipeline. Uploaded documents could first be stored in object storage, with document-processing jobs placed onto a durable message queue. A pool of workers could then perform PDF text extraction/OCR, followed by LLM extraction and deterministic validation. Results and processing metadata could be persisted in a database while failed jobs could be retried or routed to a dead-letter queue.
+For 100,000 documents per day, the current CLI-based setup could be changed to an asynchronous pipeline. Documents would be stored in object storage and processing jobs would be added to a message queue. Workers could then handle PDF text extraction or OCR, Gemini extraction, validation, and result storage. Failed jobs could be retried or moved to a dead-letter queue.
 
-At higher scale, the LLM worker layer would need rate limiting, concurrency controls, retry policies with exponential backoff, idempotency protection, and monitoring for latency, extraction failures, validation failures, and model usage. Provider-specific code is isolated in the extraction layer, allowing the system to evolve toward multiple model providers or specialized models without rewriting the validation and decision layers.
+At this scale, the system would also need rate limiting, controlled concurrency, retries with backoff, idempotency, and monitoring. Since the Gemini integration is kept separate from the validation and decision logic, another LLM provider or model could be added later without changing the rest of the system.
 
 ---
 
-## Security
+## Tech Stack
 
-* API credentials are loaded through environment variables.
-* `.env` is excluded from version control.
-* `.env.example` contains only placeholder configuration.
-* API keys should never be committed to the repository.
+* Python
+* Google Gemini
+* Pydantic
+* pytest
+* python-dotenv
+
+The project intentionally keeps the implementation small. There is no database, web framework, or additional orchestration framework because they are not needed for the current requirements.
 
 ---
 
 ## Current Status
 
-The core take-home requirements are implemented:
+The required extraction, validation, decision workflow, CLI, and automated tests are implemented.
 
-* LLM-based freight document extraction
-* Strict Pydantic schema enforcement
-* Deterministic validation engine
-* Automated decision workflow
-* CLI and JSON output
-* Error handling
-* Automated test suite
-* Deterministic end-to-end test
-
-**Test status: 22/22 tests passing.**
+The sample freight document has been tested end-to-end and correctly returns `FLAGGED_FOR_HUMAN_REVIEW` because of the rate mismatch and overweight load.
