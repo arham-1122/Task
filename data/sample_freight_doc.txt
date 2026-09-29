@@ -1,0 +1,21 @@
+Carrier: Apex Logistics Solutions LLC
+
+Reference / Load #: LD-994821
+
+Pickup:
+Distribution Center 4, Dallas, TX 75201
+
+Delivery:
+Warehouse B, Atlanta, GA 30303
+
+Weight:
+46,800 lbs
+
+Linehaul Rate:
+$2,200.00
+
+Fuel Surcharge:
+$350.00
+
+Total Agreed Amount:
+$2,800.00
