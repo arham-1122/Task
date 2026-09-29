@@ -270,8 +270,8 @@ The project intentionally keeps the implementation small. There is no database, 
 
 ---
 
-## Current Status
+## Screenshots
+<img width="1588" height="840" alt="image" src="https://github.com/user-attachments/assets/b1b87f5c-31a7-4008-8acf-b0dcae1b0559" />
 
-The required extraction, validation, decision workflow, CLI, and automated tests are implemented.
 
-The sample freight document has been tested end-to-end and correctly returns `FLAGGED_FOR_HUMAN_REVIEW` because of the rate mismatch and overweight load.
+
